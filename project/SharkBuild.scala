@@ -48,6 +48,7 @@ object SharkBuild extends Build {
 
   def coreSettings = Defaults.defaultSettings ++ Seq(
 
+    target := file("/run/shm/shark/target"),
     name := "shark",
     organization := "edu.berkeley.cs.amplab",
     version := SHARK_VERSION,
@@ -112,12 +113,14 @@ object SharkBuild extends Build {
       // Test infrastructure
       "org.scalatest" %% "scalatest" % "1.9.1" % "test",
       "junit" % "junit" % "4.10" % "test",
-      "net.java.dev.jets3t" % "jets3t" % "0.9.0",
+      //"net.java.dev.jets3t" % "jets3t" % "0.9.0",
+      "net.java.dev.jets3t" % "jets3t" % "0.7.1",
       "com.novocode" % "junit-interface" % "0.8" % "test") ++
       (if (TACHYON_ENABLED) Some("org.tachyonproject" % "tachyon" % "0.3.0-SNAPSHOT" excludeAll(excludeKyro, excludeHadoop) ) else None).toSeq
   )
 
   def assemblyProjSettings = Seq(
+    target := file("/run/shm/shark/assembly/target"),
     name := "shark-assembly",
     jarName in assembly <<= version map { v => "shark-assembly-" + v + "-hadoop" + HADOOP_VERSION + ".jar" }
   ) ++ assemblySettings ++ extraAssemblySettings
