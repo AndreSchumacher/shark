@@ -60,6 +60,7 @@ object SharkBuild extends Build {
 
   def coreSettings = Defaults.defaultSettings ++ Seq(
 
+    target := file("/run/shm/shark/target"),
     name := "shark",
     organization := "edu.berkeley.cs.amplab",
     version := SHARK_VERSION,
@@ -132,6 +133,7 @@ object SharkBuild extends Build {
 
   def assemblyProjSettings = Seq(
     jarName in assembly <<= version map { v => "shark-assembly-" + v + "-hadoop" + hadoopVersion + ".jar" }
+    target := file("/run/shm/shark/assembly/target"),
   ) ++ assemblySettings ++ extraAssemblySettings
 
   def extraAssemblySettings() = Seq(

@@ -8,6 +8,7 @@ SHARK_VERSION=0.8.0-SNAPSHOT
 FWDIR="$(cd `dirname $0`; pwd)"
 
 export SHARK_HOME="$FWDIR"
+export SHARK_TARGET="/run/shm/shark/assembly/target"
 
 # Load environment variables from conf/shark-env.sh, if it exists
 if [ -e $SHARK_HOME/conf/shark-env.sh ] ; then
@@ -78,8 +79,8 @@ done
 SPARK_CLASSPATH+=:$HIVE_CONF_DIR
 
 # Build up Shark's jar or classes.
-SHARK_CLASSES="$SHARK_HOME/target/scala-$SCALA_VERSION/classes"
-SHARK_JAR="$SHARK_HOME/target/scala-$SCALA_VERSION/shark_$SCALA_VERSION-$SHARK_VERSION.jar"
+SHARK_CLASSES="$SHARK_TARGET/scala-$SCALA_VERSION/classes"
+SHARK_JAR="$SHARK_TARGET/scala-$SCALA_VERSION/shark_$SCALA_VERSION-$SHARK_VERSION.jar"
 if [ -d "$SHARK_CLASSES/shark" ] ; then
   SPARK_CLASSPATH+=":$SHARK_CLASSES"
 else
@@ -92,17 +93,17 @@ else
   fi
 fi
 
-SPARK_CLASSPATH+=":$SHARK_HOME/target/scala-$SCALA_VERSION/test-classes"
+SPARK_CLASSPATH+=":$SHARK_TARGET/scala-$SCALA_VERSION/test-classes"
 
 
-SHARK_JAR="$SHARK_HOME/target/scala-$SCALA_VERSION/shark_$SCALA_VERSION-$SHARK_VERSION.jar"
+SHARK_JAR="$SHARK_TARGET/scala-$SCALA_VERSION/shark_$SCALA_VERSION-$SHARK_VERSION.jar"
 if [ -f "$SHARK_JAR" ] ; then
   SPARK_CLASSPATH+=":$SHARK_JAR"
 else
-  SPARK_CLASSPATH+=":$SHARK_HOME/target/scala-$SCALA_VERSION/classes"
+  SPARK_CLASSPATH+=":$SHARK_TARGET/scala-$SCALA_VERSION/classes"
 fi
 
-SPARK_CLASSPATH+=":$SHARK_HOME/target/scala-$SCALA_VERSION/test-classes"
+SPARK_CLASSPATH+=":$SHARK_TARGET/scala-$SCALA_VERSION/test-classes"
 
 
 if [ "x$HADOOP_HOME" == "x" ] ; then
@@ -155,5 +156,6 @@ if [ "x$RUNNER" == "x" ] ; then
     EXTRA_ARGS=""
   fi
 fi
-
+env
+echo "running: $RUNNER $EXTRA_ARGS $@"
 exec $RUNNER $EXTRA_ARGS "$@"
