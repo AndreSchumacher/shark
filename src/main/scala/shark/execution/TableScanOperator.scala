@@ -31,6 +31,8 @@ import org.apache.hadoop.hive.serde2.objectinspector.{ObjectInspector, ObjectIns
   StructObjectInspector}
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.PrimitiveObjectInspectorFactory
 import org.apache.hadoop.io.Writable
+//remove this after debugging
+//import org.apache.hadoop.hive.serde2.`lazy`.LazySimpleSerDe
 
 import org.apache.spark.rdd.{PartitionPruningRDD, RDD, UnionRDD}
 
@@ -38,7 +40,7 @@ import shark.{SharkConfVars, SharkEnv, Utils}
 import shark.api.QueryExecutionException
 import shark.execution.optimization.ColumnPruner
 import shark.execution.serialization.{XmlSerializer, JavaSerializer}
-import shark.memstore2.{CacheType, TablePartition, TablePartitionStats}
+import shark.memstore2.{ColumnarSerDe, CacheType, TablePartition, TablePartitionStats}
 import shark.tachyon.TachyonException
 
 
@@ -75,6 +77,8 @@ class TableScanOperator extends TopOperator[HiveTableScanOperator] with HiveTopO
       if (parts == null) {
         val serializer = tableDesc.getDeserializerClass().newInstance()
         serializer.initialize(hconf, tableDesc.getProperties)
+        // added for debugging
+        //logInfo("Raw table size: " + serializer.asInstanceOf[ColumnarSerDe].getSerDeStats.getRawDataSize)
         serializer.getObjectInspector()
       } else {
         val partProps = firstConfPartDesc.getProperties()

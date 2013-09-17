@@ -36,6 +36,8 @@ class DoubleColumnIterator(buffer: ByteBuffer) extends DefaultColumnIterator(buf
 
 class BooleanColumnIterator(buffer: ByteBuffer) extends DefaultColumnIterator(buffer, BOOLEAN)
 
+class NewBooleanColumnIterator(buffer: ByteBuffer) extends DefaultColumnIterator(buffer,new NEWBOOLEAN())
+
 class ByteColumnIterator(buffer: ByteBuffer) extends DefaultColumnIterator(buffer, BYTE)
 
 class ShortColumnIterator(buffer: ByteBuffer) extends DefaultColumnIterator(buffer, SHORT)

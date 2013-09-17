@@ -19,6 +19,7 @@ package shark.execution
 
 import java.nio.ByteBuffer
 
+import scala.collection.Map
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect.BeanProperty
 
@@ -31,6 +32,7 @@ import shark.{SharkConfVars, SharkEnv}
 import shark.execution.serialization.{OperatorSerializationWrapper, JavaSerializer}
 import shark.memstore2._
 import shark.tachyon.TachyonTableWriter
+import shark.Utils
 
 
 /**
@@ -101,6 +103,7 @@ class MemoryStoreSinkOperator extends TerminalOperator {
       op.logInfo("Putting RDD for %s in Tachyon".format(tableName))
 
       SharkEnv.memoryMetadataManager.put(tableName, rdd)
+      SharkEnv.memoryMetadataManager.put(tableName, rdd)
 
       tachyonWriter.createTable(ByteBuffer.allocate(0))
       rdd = rdd.mapPartitionsWithIndex { case(partitionIndex, iter) =>
@@ -141,8 +144,7 @@ class MemoryStoreSinkOperator extends TerminalOperator {
     }
 
     // Report remaining memory.
-    /* Commented out for now waiting for the reporting code to make into Spark.
-    val remainingMems: Map[String, (Long, Long)] = SharkEnv.sc.getSlavesMemoryStatus
+    val remainingMems: Map[String, (Long, Long)] = SharkEnv.sc.getExecutorMemoryStatus
     remainingMems.foreach { case(slave, mem) =>
       println("%s: %s / %s".format(
         slave,
@@ -152,7 +154,6 @@ class MemoryStoreSinkOperator extends TerminalOperator {
     println("Summary: %s / %s".format(
       Utils.memoryBytesToString(remainingMems.map(_._2._2).sum),
       Utils.memoryBytesToString(remainingMems.map(_._2._1).sum)))
-    */
 
     val columnStats =
       if (useUnionRDD) {

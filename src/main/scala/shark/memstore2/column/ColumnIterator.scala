@@ -69,6 +69,7 @@ object Implicits {
     case TIMESTAMP.typeID => TIMESTAMP
     case BINARY.typeID => BINARY
     case GENERIC.typeID => GENERIC
+    case NEWBOOLEAN.typeID => NEWBOOLEAN(0,0,false)
     case _ => throw new MemoryStoreException("Unknown column type " + i)
   }
 }
@@ -98,6 +99,7 @@ object ColumnIterator {
       case BINARY => new BinaryColumnIterator(buffer)
       case TIMESTAMP => new TimestampColumnIterator(buffer)
       case GENERIC => new GenericColumnIterator(buffer)
+      case NEWBOOLEAN(0,0,false) => new NewBooleanColumnIterator(buffer)
     }
   }
 }

@@ -31,6 +31,8 @@ import shark.memstore2.column.ColumnStats._
 
 class BooleanColumnBuilder extends DefaultColumnBuilder[Boolean](new BooleanColumnStats(), BOOLEAN)
 
+class NewBooleanColumnBuilder extends DefaultColumnBuilder[Boolean](new BooleanColumnStats(), new NEWBOOLEAN())
+
 class IntColumnBuilder extends DefaultColumnBuilder[Int](new IntColumnStats(), INT)
 
 class LongColumnBuilder extends DefaultColumnBuilder[Long](new LongColumnStats(), LONG)

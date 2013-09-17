@@ -17,6 +17,9 @@
 
 package shark.memstore2.column
 
+import java.io.DataInput
+import java.io.DataOutput
+
 import java.nio.ByteBuffer
 import java.sql.Timestamp
 
@@ -410,3 +413,136 @@ object GENERIC extends ColumnType[ByteStream.Output, ByteArrayRef](11, 16) {
 
   override def newWritable() = new ByteArrayRef
 }
+
+case class NEWBOOLEAN (
+  var bitPos: Byte = 0,
+  var values : Int = 0,
+  var initialized : Boolean = false) extends ColumnType[Boolean, NewBooleanWritable](NEWBOOLEAN.typeID, NEWBOOLEAN.defaultSize) {
+
+  //var bitPos: Byte = 0
+  //var values: Int = 0
+  //var initialized = false
+
+  override def append(v: Boolean, buffer: ByteBuffer) {
+   if (bitPos < NewBooleanWritable.MAX_NUMBER_OF_PACKED_BOOLEANS) {
+     updateValues(v)
+     incrPos()
+   } else {
+     buffer.put(bitPos)
+     buffer.putInt(values)
+     bitPos = 0
+     values = 0
+   }
+  }
+
+  override def extract(buffer: ByteBuffer) = {
+    if (bitPos < NewBooleanWritable.MAX_NUMBER_OF_PACKED_BOOLEANS && initialized) {
+      val v = currentValue
+      incrPos()
+      v
+    } else {
+      bitPos = buffer.get()
+      values = buffer.getInt()
+      initialized = true
+      currentValue
+    }
+  }
+
+  override def get(o: Object, oi: ObjectInspector): Boolean = {
+    val v = currentValue
+    incrPos()
+    v
+  }
+
+  override def extractInto(buffer: ByteBuffer, writable: NewBooleanWritable) {
+    writable.set(extract(buffer), bitPos)
+  }
+
+  override def newWritable() = new NewBooleanWritable(0, 0)
+
+  private def updateValues(v: Boolean) {
+    if(v) {
+      values |= 1 << bitPos
+    } else {
+      values &= 0 << bitPos
+    }
+  }
+
+  private val currentValue = (values & (1 << bitPos)) > 0
+
+  private def incrPos() = {
+    bitPos = (bitPos.asInstanceOf[Int] + 1).asInstanceOf[Byte]
+  }
+}
+
+object NEWBOOLEAN {
+  val typeID : Int = 12
+  val defaultSize: Int = 8
+
+  def apply() = new NEWBOOLEAN()
+}
+
+/**
+ * ByteWritable.
+ *
+ */
+
+object NewBooleanWritable {
+  val MAX_NUMBER_OF_PACKED_BOOLEANS = 30
+  val BOOLEAN_VALUES_OFFSET = 5
+}
+
+class NewBooleanWritable(var bitPos: Byte, var values: Int) extends WritableComparable[NewBooleanWritable] {
+
+  def write(out: DataOutput) {
+    out.writeByte(bitPos)
+    out.writeInt(values)
+  }
+
+  def readFields(in: DataInput) {
+    bitPos = in.readByte()
+
+    assert(bitPos < NewBooleanWritable.MAX_NUMBER_OF_PACKED_BOOLEANS)
+
+    values = in.readInt()
+  }
+
+  def set(v: Boolean, pos: Byte) {
+    if (v) {
+      values |= 1 << pos
+    } else {
+      values &= 0 << pos
+    }
+  }
+
+  /** Compares two NewBooleanWritables. */
+  override def compareTo(o: NewBooleanWritable): Int = {
+    val other = o.asInstanceOf[NewBooleanWritable]
+
+    assert(bitPos < NewBooleanWritable.BOOLEAN_VALUES_OFFSET)
+    assert(other.bitPos < NewBooleanWritable.BOOLEAN_VALUES_OFFSET)
+
+    val pos_difference = bitPos - other.bitPos
+    val val_difference = values - other.values
+
+    (val_difference << NewBooleanWritable.BOOLEAN_VALUES_OFFSET) + pos_difference
+  }
+
+  override def equals(o: Any) : Boolean = {
+    if (o == null || o.getClass.getName != classOf[NewBooleanWritable]) {
+      return false
+    }
+    val other = o.asInstanceOf[NewBooleanWritable]
+    values == other.values && bitPos == other.bitPos
+  }
+
+  override def hashCode: Int = {
+    (values << NewBooleanWritable.BOOLEAN_VALUES_OFFSET) + bitPos
+  }
+
+  override def toString: String = {
+    val str = values.toBinaryString
+    str + ", " + bitPos.toString
+  }
+}
+
