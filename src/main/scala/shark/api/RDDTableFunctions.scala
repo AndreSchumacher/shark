@@ -22,15 +22,16 @@ import scala.collection.mutable.ArrayBuffer
 import org.apache.hadoop.hive.ql.metadata.Hive
 
 import org.apache.spark.rdd.RDD
+import org.apache.spark.storage.StorageLevel
 
 import shark.{SharkContext, SharkEnv}
-import shark.memstore2.{CacheType, TablePartitionStats, TablePartition, TablePartitionBuilder}
+import shark.memstore2._
 import shark.util.HiveUtils
 
 
 class RDDTableFunctions(self: RDD[Product], manifests: Seq[ClassManifest[_]]) {
 
-  def saveAsTable(tableName: String, fields: Seq[String]): Boolean = {
+  def saveAsTable(tableName: String, fields: Seq[String], storageLevelStr: String = null): Boolean = {
     require(fields.size == this.manifests.size,
       "Number of column names != number of fields in the RDD.")
 
@@ -38,6 +39,19 @@ class RDDTableFunctions(self: RDD[Product], manifests: Seq[ClassManifest[_]]) {
     val manifests = this.manifests
 
     val statsAcc = SharkEnv.sc.accumulableCollection(ArrayBuffer[(Int, TablePartitionStats)]())
+
+    val storageLevel =
+      if(storageLevelStr != null) {
+        MemoryMetadataManager.getStorageLevelFromString(storageLevelStr)
+      } else {
+        StorageLevel.MEMORY_ONLY
+      }
+
+    val tableTmpName =
+      if(storageLevel == StorageLevel.MEMORY_ONLY)
+        tableName
+      else
+        "%s_tmp".format(tableName)
 
     // Create the RDD object.
     val rdd = self.mapPartitionsWithIndex { case(partitionIndex, iter) =>
@@ -56,14 +70,14 @@ class RDDTableFunctions(self: RDD[Product], manifests: Seq[ClassManifest[_]]) {
       Iterator(builder.build())
     }.persist()
 
-    var isSucessfulCreateTable = HiveUtils.createTableInHive(tableName, fields, manifests)
+    var isSucessfulCreateTable = HiveUtils.createTableInHive(tableTmpName, fields, manifests)
 
     // Put the table in the metastore. Only proceed if the DDL statement is executed successfully.
     val databaseName = Hive.get(SharkContext.hiveconf).getCurrentDatabase()
     if (isSucessfulCreateTable) {
       // Create an entry in the MemoryMetadataManager.
       val newTable = SharkEnv.memoryMetadataManager.createMemoryTable(
-        databaseName, tableName, CacheType.HEAP, rdd.getStorageLevel)
+        databaseName, tableTmpName, CacheType.HEAP, storageLevel)
       newTable.tableRDD = rdd
       try {
         // Force evaluate to put the data in memory.
@@ -72,15 +86,22 @@ class RDDTableFunctions(self: RDD[Product], manifests: Seq[ClassManifest[_]]) {
         case _ => {
           // Intercept the exception thrown by SparkContext#runJob() and handle it silently. The
           // exception message should already be printed to the console by DDLTask#execute().
-          HiveUtils.dropTableInHive(tableName)
+          HiveUtils.dropTableInHive(tableTmpName)
           // Drop the table entry from MemoryMetadataManager.
-          SharkEnv.memoryMetadataManager.removeTable(databaseName, tableName)
+          SharkEnv.memoryMetadataManager.removeTable(databaseName, tableTmpName)
           isSucessfulCreateTable = false
         }
       }
-
       // Gather the partition statistics.
-      SharkEnv.memoryMetadataManager.putStats(databaseName, tableName, statsAcc.value.toMap)
+      SharkEnv.memoryMetadataManager.putStats(databaseName, tableTmpName, statsAcc.value.toMap)
+
+      if(storageLevel != StorageLevel.MEMORY_ONLY) {
+        SharkEnv.sc.asInstanceOf[SharkContext].runSql("CREATE TABLE %s AS SELECT * FROM %s".format(tableName, tableTmpName))
+        // Drop the temporary table from Hive
+        HiveUtils.dropTableInHive(tableTmpName)
+        // Drop the temporary-table entry from MemoryMetadataManager.
+        SharkEnv.memoryMetadataManager.removeTable(databaseName, tableTmpName)
+      }
     }
     return isSucessfulCreateTable
   }
